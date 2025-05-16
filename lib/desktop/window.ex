@@ -77,6 +77,7 @@ defmodule Desktop.Window do
 
   alias Desktop.{OS, Window, Wx, Menu, Fallback}
   require Logger
+  import Bitwise
 
   @enforce_keys [:frame]
   defstruct [
@@ -112,6 +113,7 @@ defmodule Desktop.Window do
   def init(options) do
     window_title = options[:title] || Atom.to_string(options[:id])
     size = options[:size] || {600, 500}
+    position = options[:position] || {0, 0}
     min_size = options[:min_size]
     app = options[:app]
     icon = options[:icon]
@@ -122,6 +124,10 @@ defmodule Desktop.Window do
     hidden = unless OS.mobile?(), do: options[:hidden]
     url = options[:url]
 
+    frame_style =
+      (options[:styles] || [:caption, :maximize_box, :minimize_box, :close_box])
+      |> frame_style()
+
     env = Desktop.Env.wx_env()
     GenServer.cast(Desktop.Env, {:register_window, self()})
     :wx.set_env(env)
@@ -129,7 +135,8 @@ defmodule Desktop.Window do
     frame =
       :wxFrame.new(Desktop.Env.wx(), Wx.wxID_ANY(), window_title, [
         {:size, size},
-        {:style, Wx.wxDEFAULT_FRAME_STYLE()}
+        {:pos, position},
+        {:style, frame_style}
       ])
 
     :wxFrame.connect(frame, :close_window,
@@ -318,6 +325,19 @@ defmodule Desktop.Window do
   """
   def set_title(pid, title) do
     GenServer.cast(pid, {:set_title, title})
+  end
+
+  @doc """
+    Maximize the window
+
+    * `pid` - The pid or atom of the Window
+
+  ## Examples
+      iex> Desktop.Window.maximize(pid)
+      :ok
+  """
+  def maximize(pid) do
+    GenServer.cast(pid, :maximize)
   end
 
   @doc """
@@ -567,6 +587,11 @@ defmodule Desktop.Window do
     {:noreply, %Window{ui | title: title}}
   end
 
+  def handle_cast(:maximize, ui = %Window{frame: frame}) do
+    :wxTopLevelWindow.maximize(frame)
+    {:noreply, ui}
+  end
+
   def handle_cast({:iconize, iconize}, ui = %Window{frame: frame}) do
     :wxTopLevelWindow.iconize(frame, iconize: iconize)
     {:noreply, ui}
@@ -674,5 +699,29 @@ defmodule Desktop.Window do
     end
 
     :wxFrame.connect(frame, :command_menu_selected)
+  end
+
+  # Wx.wxSYSTEM_MENU() ||| Wx.wxMINIMIZE_BOX() ||| Wx.wxMAXIMIZE_BOX() ||| Wx.wxCAPTION() |||
+  # Wx.wxCLIP_CHILDREN() |||
+  # Wx.wxMAXIMIZE()
+
+  defp frame_style(styles) do
+    styles
+    |> Enum.reduce(Wx.wxSYSTEM_MENU() ||| Wx.wxCLIP_CHILDREN(), fn
+      :minimize_box, acc_style ->
+        acc_style ||| Wx.wxMINIMIZE_BOX()
+
+      :maximize_box, acc_style ->
+        acc_style ||| Wx.wxMAXIMIZE_BOX()
+
+      :close_box, acc_style ->
+        acc_style ||| Wx.wxCLOSE_BOX()
+
+      :maximize, acc_style ->
+        acc_style ||| Wx.wxMAXIMIZE()
+
+      :caption, acc_style ->
+        acc_style ||| Wx.wxCAPTION()
+    end)
   end
 end

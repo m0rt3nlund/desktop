@@ -3,7 +3,8 @@ defmodule Desktop.Wx do
   Elixir version of the constants found in the wx.hrl file, reduced to what is needed in this sample only.
   """
   @constants ~w(
-    ID_ANY ID_EXIT DEFAULT_FRAME_STYLE NO_BORDER EXPAND HORIZONTAL VERTICAL
+    ID_ANY ID_EXIT DEFAULT_FRAME_STYLE MAXIMIZE_BOX MAXIMIZE CAPTION CLOSE_BOX MINIMIZE_BOX RESIZE_BORDER
+    SYSTEM_MENU NO_BORDER EXPAND HORIZONTAL VERTICAL CLIP_CHILDREN
     ITEM_SEPARATOR ITEM_NORMAL ITEM_CHECK ITEM_RADIO
     ICON_WARNING ICON_ERROR ICON_QUESTION ICON_INFORMATION
     MAJOR_VERSION MINOR_VERSION RELEASE_NUMBER IMAGE_QUALITY_HIGH )
@@ -25,11 +26,12 @@ defmodule Desktop.Wx do
   )
 
   for wx_constant <- @constants do
-    Module.eval_quoted(
-      __MODULE__,
+    Code.eval_quoted(
       Code.string_to_quoted("""
         def wx#{wx_constant}, do: :desktop_wx.get(:wx#{wx_constant})
-      """)
+      """),
+      [],
+      [file: __ENV__.file, line: __ENV__.line, module: __MODULE__]
     )
   end
 end

@@ -2,6 +2,9 @@
   -include_lib("wx/include/wx.hrl").
   -export([get/1]).
 
+  get(wxCAPTION) -> ?wxCAPTION;
+  get(wxCLIP_CHILDREN) -> ?wxCLIP_CHILDREN;
+  get(wxCLOSE_BOX) -> ?wxCLOSE_BOX;
   get(wxDEFAULT_FRAME_STYLE) -> ?wxDEFAULT_FRAME_STYLE;
   get(wxEXPAND) -> ?wxEXPAND;
   get(wxHORIZONTAL) -> ?wxHORIZONTAL;
@@ -17,7 +20,12 @@
   get(wxITEM_RADIO) -> ?wxITEM_RADIO;
   get(wxITEM_SEPARATOR) -> ?wxITEM_SEPARATOR;
   get(wxMAJOR_VERSION) -> ?wxMAJOR_VERSION;
+  get(wxMAXIMIZE) -> ?wxMAXIMIZE;
+  get(wxMAXIMIZE_BOX) -> ?wxMAXIMIZE_BOX;
+  get(wxMINIMIZE_BOX) -> ?wxMINIMIZE_BOX;
   get(wxMINOR_VERSION) -> ?wxMINOR_VERSION;
   get(wxNO_BORDER) -> ?wxNO_BORDER;
   get(wxRELEASE_NUMBER) -> ?wxRELEASE_NUMBER;
+  get(wxRESIZE_BORDER) -> ?wxRESIZE_BORDER;
+  get(wxSYSTEM_MENU) -> ?wxSYSTEM_MENU;
   get(wxVERTICAL) -> ?wxVERTICAL.
