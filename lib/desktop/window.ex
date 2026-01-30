@@ -250,6 +250,22 @@ defmodule Desktop.Window do
   end
 
   @doc """
+  Loads the given url into the Window.
+
+    * `pid` - The pid or atom of the Window
+    * `url` - The url to load. If none is provided, the last url will be used.
+
+  ## Examples
+
+      iex> Desktop.Window.load_url(pid, "http://localhost:1234/main")
+      :ok
+
+  """
+  def load_url(pid, url) do
+    GenServer.cast(pid, {:load_url, url})
+  end
+
+  @doc """
   Show the Window if not visible with the given url.
 
     * `pid` - The pid or atom of the Window
@@ -458,9 +474,7 @@ defmodule Desktop.Window do
 
   ## Examples
 
-      iex> :wx.set_env(Desktop.Env.wx_env())
-      iex> :wxWebView.isContextMenuEnabled(Desktop.Window.webview(pid))
-      false
+      iex> Desktop.Window.show_notification(pid, "Hello, world!")
 
   """
   def show_notification(pid, text, opts \\ []) do
@@ -485,6 +499,13 @@ defmodule Desktop.Window do
 
     callback = Keyword.get(opts, :callback, nil)
     GenServer.cast(pid, {:show_notification, text, id, type, title, callback, timeout})
+  end
+
+  @doc """
+  Dismiss a notification
+  """
+  def dismiss_notification(pid, id) do
+    GenServer.cast(pid, {:dismiss_notification, id})
   end
 
   @doc """
@@ -613,7 +634,7 @@ defmodule Desktop.Window do
     {:noreply, ui}
   end
 
-  def handle_cast(:rebuild_webview, ui) do
+  def handle_cast(:rebuild_webview, ui = %Window{}) do
     {:noreply, %Window{ui | webview: Fallback.webview_rebuild(ui)}}
   end
 
@@ -633,10 +654,28 @@ defmodule Desktop.Window do
     {:noreply, %Window{ui | notifications: noties}}
   end
 
+  def handle_cast({:dismiss_notification, id}, ui = %Window{notifications: noties}) do
+    case Map.pop(noties, id) do
+      {nil, _noties} ->
+        {:noreply, ui}
+
+      {{note, _callback}, noties} ->
+        Fallback.notification_close(note)
+        {:noreply, %Window{ui | notifications: noties}}
+    end
+  end
+
   def handle_cast({:show, url}, ui = %Window{home_url: home, last_url: last}) do
     new_url = prepare_url(url || last || home)
     Logger.info("Showing #{new_url}")
     Fallback.webview_show(ui, new_url, url == nil)
+    {:noreply, %Window{ui | last_url: new_url}}
+  end
+
+  def handle_cast({:load_url, url}, ui = %Window{home_url: home, last_url: last}) do
+    new_url = prepare_url(url || last || home)
+    Logger.info("Loading #{new_url}")
+    Fallback.webview_load(ui, new_url)
     {:noreply, %Window{ui | last_url: new_url}}
   end
 

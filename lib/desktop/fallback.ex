@@ -123,6 +123,14 @@ defmodule Desktop.Fallback do
     call(:wxWebView, :getCurrentURL, [webview])
   end
 
+  def webview_load(%Desktop.Window{webview: nil}, url) do
+    OS.launch_default_browser(url)
+  end
+
+  def webview_load(%Desktop.Window{webview: webview}, url) do
+    call(:wxWebView, :loadURL, [webview, url])
+  end
+
   def webview_show(%Desktop.Window{webview: nil}, url, _) do
     OS.launch_default_browser(url)
   end
@@ -206,6 +214,10 @@ defmodule Desktop.Fallback do
     else
       Logger.notice("NOTIFICATION: #{title}: #{message}")
     end
+  end
+
+  def notification_close(notification) do
+    call(:wxNotificationMessage, :close, [notification])
   end
 
   def wx_subscribe() do

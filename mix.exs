@@ -83,10 +83,11 @@ defmodule Desktop.MixProject do
       # {:ex_sni, path: "../ex_sni"},
 
       # Phoenix & Plug
-      {:phoenix, "> 1.0.0"},
-      {:phoenix_live_view, "> 0.15.0"},
+      {:phoenix, "> 1.7.10"},
+      {:phoenix_live_view, "> 1.0.0"},
       {:plug, "> 1.0.0"},
-      {:gettext, "> 0.10.0"}
+      {:gettext, "> 0.10.0"},
+      {:igniter, "~> 0.6", optional: true}
     ]
 
     if Mix.target() in [:android, :ios] do
@@ -104,7 +105,8 @@ defmodule Desktop.MixProject do
         "README.md": [title: "Overview"],
         "CHANGELOG.md": [title: "Changelog"],
         "guides/getting_started.md": [title: "Getting your Environment Ready"],
-        "guides/your_first_desktop_app.md": [title: "Your first Desktop App"]
+        "guides/your_first_desktop_app.md": [title: "Your first Desktop App"],
+        "guides/faq.md": [title: "FAQ"]
       ],
       main: "readme",
       source_ref: "v#{@version}",
