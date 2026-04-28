@@ -9,6 +9,11 @@ defmodule Desktop.Env do
 
   Also it has a global connect() method to allow binding of :wx event callbacks using
   this long lived process as reference.
+
+  Subscribers (see `subscribe/0`) also receive:
+
+  * `{:desktop, :window_activated, window_id}` — a `Desktop.Window` with registered
+    `id` has become the active frame (user brought the app window to the foreground).
   """
   alias Desktop.Env
   use GenServer
@@ -54,8 +59,15 @@ defmodule Desktop.Env do
       send(pid, e)
     end
 
-    Process.monitor(pid)
-    {:reply, :ok, %Env{d | subs: [pid | subs], events: []}}
+    subs =
+      if pid in subs do
+        subs
+      else
+        Process.monitor(pid)
+        [pid | subs]
+      end
+
+    {:reply, :ok, %Env{d | subs: subs, events: []}}
   end
 
   def handle_call(:wx_env, _from, d = %Env{wx_env: env}) do
@@ -110,6 +122,14 @@ defmodule Desktop.Env do
   def handle_cast({:register_window, window}, state = %Env{windows: windows}) do
     Process.monitor(window)
     {:noreply, %Env{state | windows: [window | windows]}}
+  end
+
+  def handle_cast({:notify_subscribers, message}, state = %Env{subs: subs}) do
+    for sub <- subs do
+      send(sub, message)
+    end
+
+    {:noreply, state}
   end
 
   @impl true
@@ -259,9 +279,20 @@ defmodule Desktop.Env do
     * `{:open_file, [filename]}`
     * `{:open_url, [filename]}`
     * `{:new_file, []}`
+    * `{:desktop, :window_activated, window_id}` — from `Desktop.Window` when the
+      frame becomes active (see `Desktop.Env` module doc).
   """
   def subscribe() do
     GenServer.call(__MODULE__, {:subscribe, self()})
+  end
+
+  @doc """
+  Delivers a message to all processes that called `subscribe/0`.
+
+  Used internally by `Desktop.Window` for lifecycle events (e.g. frame activation).
+  """
+  def notify_subscribers(message) when is_tuple(message) do
+    GenServer.cast(__MODULE__, {:notify_subscribers, message})
   end
 
   defp init_sni() do

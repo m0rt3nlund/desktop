@@ -95,6 +95,7 @@ defmodule Desktop.Window do
     :module,
     :taskbar,
     :frame,
+    :id,
     :notifications,
     :webview,
     :home_url,
@@ -158,6 +159,13 @@ defmodule Desktop.Window do
       userData: self()
     )
 
+    unless OS.mobile?() do
+      :wxFrame.connect(frame, :activate,
+        callback: &frame_activate/2,
+        userData: self()
+      )
+    end
+
     if min_size do
       :wxFrame.setMinSize(frame, min_size)
     end
@@ -219,6 +227,7 @@ defmodule Desktop.Window do
 
     ui = %Window{
       frame: frame,
+      id: options[:id],
       webview: Fallback.webview_new(frame),
       notifications: %{},
       home_url: url,
@@ -577,6 +586,23 @@ defmodule Desktop.Window do
 
     GenServer.cast(pid, :close_window)
     :ok
+  end
+
+  def frame_activate(wx(userData: pid), event) do
+    if :wxActivateEvent.getActive(event) do
+      GenServer.cast(pid, :frame_activated)
+    end
+
+    :ok
+  end
+
+  @doc false
+  def handle_cast(:frame_activated, ui = %Window{id: id}) do
+    if id != nil do
+      Desktop.Env.notify_subscribers({:desktop, :window_activated, id})
+    end
+
+    {:noreply, ui}
   end
 
   @doc false
