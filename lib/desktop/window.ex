@@ -73,6 +73,18 @@ defmodule Desktop.Window do
     * `:url` - a callback to the initial (default) url to show in the
       window.
 
+    * `:on_close` - controls the behavior when the native window close
+      button is clicked.
+
+        Possible values are:
+
+        * `:quit` - Shut down the application (default). This is the
+          legacy behavior and is appropriate for main/primary windows.
+
+        * `:hide` - Hide the window instead of quitting. Useful for
+          secondary windows (e.g. settings, preferences) that should
+          be dismissible without terminating the application.
+
   """
 
   alias Desktop.{OS, Window, Wx, Menu, Fallback}
@@ -84,11 +96,13 @@ defmodule Desktop.Window do
     :module,
     :taskbar,
     :frame,
+    :id,
     :notifications,
     :webview,
     :home_url,
     :last_url,
-    :title
+    :title,
+    on_close: :quit
   ]
 
   @doc false
@@ -124,6 +138,7 @@ defmodule Desktop.Window do
     hidden = unless OS.mobile?(), do: options[:hidden]
     maximize = unless OS.mobile?(), do: options[:maximize]
     url = options[:url]
+    on_close = options[:on_close] || :quit
 
     frame_style =
       (options[:styles] || [:caption, :maximize_box, :minimize_box, :close_box])
@@ -159,6 +174,13 @@ defmodule Desktop.Window do
       callback: &close_window/2,
       userData: self()
     )
+
+    unless OS.mobile?() do
+      :wxFrame.connect(frame, :activate,
+        callback: &frame_activate/2,
+        userData: self()
+      )
+    end
 
     if min_size do
       :wxFrame.setMinSize(frame, min_size)
@@ -221,11 +243,13 @@ defmodule Desktop.Window do
 
     ui = %Window{
       frame: frame,
+      id: options[:id],
       webview: Fallback.webview_new(frame),
       notifications: %{},
       home_url: url,
       title: window_title,
-      taskbar: taskbar
+      taskbar: taskbar,
+      on_close: on_close
     }
 
     if hidden != true do
@@ -597,27 +621,49 @@ defmodule Desktop.Window do
     :ok
   end
 
-  @doc false
-  def handle_cast(:close_window, ui = %Window{frame: frame, taskbar: taskbar}) do
-    # On macOS, there's no way to differentiate between following two events:
-    #
-    # * the window close event
-    # * the application close event
-    #
-    # So, this code assumes that if there's a closet_window event coming in while
-    # the window in not actually shown, then it must be an application close event.
-    #
-    # On other platforms, this code should not have any relevance.
-    if not :wxFrame.isShown(frame) do
-      OS.shutdown()
+  def frame_activate(wx(userData: pid), event) do
+    if :wxActivateEvent.getActive(event) do
+      GenServer.cast(pid, :frame_activated)
     end
 
-    if taskbar == nil do
-      OS.shutdown()
-      {:noreply, ui}
-    else
+    :ok
+  end
+
+  @doc false
+  def handle_cast(:frame_activated, ui = %Window{id: id}) do
+    if id != nil do
+      Desktop.Env.notify_subscribers({:desktop, :window_activated, id})
+    end
+
+    {:noreply, ui}
+  end
+
+  @doc false
+  def handle_cast(:close_window, ui = %Window{frame: frame, taskbar: taskbar, on_close: on_close}) do
+    if on_close == :hide do
       :wxFrame.hide(frame)
       {:noreply, ui}
+    else
+      # On macOS, there's no way to differentiate between following two events:
+      #
+      # * the window close event
+      # * the application close event
+      #
+      # So, this code assumes that if there's a close_window event coming in while
+      # the window is not actually shown, then it must be an application close event.
+      #
+      # On other platforms, this code should not have any relevance.
+      if not :wxFrame.isShown(frame) do
+        OS.shutdown()
+      end
+
+      if taskbar == nil do
+        OS.shutdown()
+        {:noreply, ui}
+      else
+        :wxFrame.hide(frame)
+        {:noreply, ui}
+      end
     end
   end
 
