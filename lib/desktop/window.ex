@@ -122,6 +122,7 @@ defmodule Desktop.Window do
     menubar = unless OS.mobile?(), do: options[:menubar]
     icon_menu = unless OS.mobile?(), do: options[:icon_menu]
     hidden = unless OS.mobile?(), do: options[:hidden]
+    maximize = unless OS.mobile?(), do: options[:maximize]
     url = options[:url]
 
     frame_style =
@@ -229,6 +230,10 @@ defmodule Desktop.Window do
 
     if hidden != true do
       show(self(), url)
+    end
+
+    if maximize == true do
+      maximize(self())
     end
 
     {frame, ui}
